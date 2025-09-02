@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rutina alumna · Septiembre 2025</title>
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React + ReactDOM (CDN) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel standalone to execute JSX in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-neutral-50 text-neutral-900">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useState } = React;
+
+    // --- Constantes ---
+    const YEAR = 2025;
+    const MONTH = 8; // septiembre (0-indexed)
+    const STORAGE_KEY = "rutina_alumna_sept2025_v1";
+
+    // --- Ejercicios ---
+    const day1Exercises = [
+      { name: "Calentamiento – bicicleta/movilidad", sets: 1, target: "5-10 min", video: "https://www.youtube.com/watch?v=9VzBDFco5BE", notes: "RPE suave (3/10)" },
+      { name: "Sentadilla en máquina Smith", sets: 3, target: "8-12", video: "https://www.youtube.com/watch?v=Orxowest56U" },
+      { name: "Peso muerto rumano con mancuernas", sets: 3, target: "8-12", video: "https://www.youtube.com/watch?v=DJtL9j1J1iA" },
+      { name: "Zancadas alternadas", sets: 3, target: "8-10 por pierna", video: "https://www.youtube.com/watch?v=D7KaRcUTQeE" },
+      { name: "Hip Thrust en máquina/banco", sets: 3, target: "10-12", video: "https://www.youtube.com/watch?v=LM8XHLYJoYs" },
+      { name: "Elevación de talones en máquina", sets: 3, target: "12-15", video: "https://www.youtube.com/watch?v=YMmgqO8Jo-k" },
+      { name: "Plancha abdominal", sets: 2, target: "30-45 seg", video: "https://www.youtube.com/watch?v=BQu26ABuVS0" },
+      { name: "Bird-dog / Dead bug", sets: 2, target: "10-12 por lado", video: "https://www.youtube.com/watch?v=wiFNA3sqjCA" }
+    ];
+
+    const day2Exercises = [
+      { name: "Calentamiento – movilidad hombros/bandas", sets: 1, target: "5-10 min", video: "https://www.youtube.com/watch?v=5V9tG1rJEd0", notes: "RPE suave (3/10)" },
+      { name: "Press de banca en máquina/mancuernas", sets: 3, target: "8-12", video: "https://www.youtube.com/watch?v=rT7DgCr-3pg" },
+      { name: "Remo en máquina o mancuerna", sets: 3, target: "8-12", video: "https://www.youtube.com/watch?v=vT2GjY_Umpw" },
+      { name: "Press militar en máquina/mancuernas", sets: 3, target: "8-12", video: "https://www.youtube.com/watch?v=qEwKCR5JCog" },
+      { name: "Curl de bíceps (máquina/mancuernas)", sets: 3, target: "10-12", video: "https://www.youtube.com/watch?v=in7PaeYlhrM" },
+      { name: "Tríceps en polea o fondos en banco", sets: 3, target: "10-12", video: "https://www.youtube.com/watch?v=6kALZikXxLc" },
+      { name: "Plancha lateral", sets: 2, target: "30-45 seg/lado", video: "https://www.youtube.com/watch?v=K2VljzCC16g" },
+      { name: "Hollow hold", sets: 2, target: "20-30 seg", video: "https://www.youtube.com/watch?v=7j3E3xJsoJY" }
+    ];
+
+    const trainingByWeekday = {
+      2: { label: "Día 1 – Tren Inferior", exercises: day1Exercises }, // martes
+      4: { label: "Día 2 – Tren Superior", exercises: day2Exercises }  // jueves
+    };
+
+    function range(n) { return Array.from({ length: n }, (_, i) => i); }
+
+    // --- Helpers calendario ---
+    function getMonthMatrix(year, month) {
+      const first = new Date(year, month, 1);
+      const startDay = first.getDay(); // 0=Dom
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const cells = [];
+      const prevDays = (startDay + 6) % 7;
+      const prevMonthDays = new Date(year, month, 0).getDate();
+      for (let i = prevDays; i > 0; i--) {
+        const d = prevMonthDays - i + 1;
+        cells.push({ date: new Date(year, month - 1, d), currentMonth: false });
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({ date: new Date(year, month, d), currentMonth: true });
+      }
+      const nextNeeded = (7 - (cells.length % 7)) % 7;
+      for (let d = 1; d <= nextNeeded; d++) {
+        cells.push({ date: new Date(year, month + 1, d), currentMonth: false });
+      }
+      const weeks = [];
+      for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+      return weeks;
+    }
+
+    function classNames(...c) { return c.filter(Boolean).join(" "); }
+
+    function ExerciseCard({ dateKey, exercise, saved, onInput }) {
+      const sets = exercise.sets || 1;
+      return (
+        <div className="border rounded-xl p-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <div className="font-medium">{exercise.name}</div>
+              <div className="text-xs text-neutral-600">Objetivo: {exercise.target}</div>
+            </div>
+            <a className="text-sm underline text-blue-700" href={exercise.video} target="_blank" rel="noreferrer">Ver video</a>
+          </div>
+
+          <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2 items-end">
+            {range(sets).map((i) => {
+              const data = (saved && saved[i]) || { peso: "", reps: "" };
+              return (
+                <div key={i} className="bg-neutral-50 border border-neutral-200 rounded-lg p-2">
+                  <div className="text-[11px] text-neutral-600 mb-1">Serie {i + 1}</div>
+                  <label className="text-xs text-neutral-700">Peso (kg)</label>
+                  <input
+                    type="number" min="0" step="0.5"
+                    className="w-full rounded-lg border border-neutral-300 p-1 text-sm"
+                    value={data.peso}
+                    onChange={(e) => onInput(dateKey, exercise.name, i, "peso", e.target.value)}
+                  />
+                  <label className="text-xs text-neutral-700 mt-1 block">Reps / seg</label>
+                  <input
+                    type="number" min="0" step="1"
+                    className="w-full rounded-lg border border-neutral-300 p-1 text-sm"
+                    value={data.reps}
+                    onChange={(e) => onInput(dateKey, exercise.name, i, "reps", e.target.value)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function DayDetail({ date, label, exercises, store, onInput, onNotes }) {
+      const dateKey = date.toISOString().slice(0, 10);
+      const saved = store[dateKey] || { notes: "", exercises: {} };
+      const dayName = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][date.getDay()];
+
+      return (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <div className="text-sm text-neutral-600">{dayName}, {date.toLocaleDateString("es-CL")}</div>
+              <div className="text-base font-medium">{label}</div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {exercises.map((ex) => (
+              <ExerciseCard
+                key={ex.name}
+                dateKey={dateKey}
+                exercise={ex}
+                saved={saved.exercises && saved.exercises[ex.name]}
+                onInput={onInput}
+              />
+            ))}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Notas del día</label>
+            <textarea
+              className="mt-1 w-full rounded-xl border border-neutral-300 p-2 text-sm"
+              rows={3}
+              placeholder="Sensaciones, dolor, ajuste de cargas, RPE, etc."
+              value={saved.notes}
+              onChange={(e) => onNotes(dateKey, e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [store, setStore] = useState(() => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch { return {}; }
+      });
+
+      useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      }, [store]);
+
+      const monthMatrix = useMemo(() => getMonthMatrix(YEAR, MONTH), []);
+      const [selectedDate, setSelectedDate] = useState(null);
+
+      const weekday = selectedDate?.getDay();
+      const trainingInfo = (weekday != null) ? trainingByWeekday[weekday] : null;
+
+      const handleInput = (dateKey, exName, setIdx, field, value) => {
+        setStore(prev => {
+          const next = { ...prev };
+          next[dateKey] = next[dateKey] || { notes: "", exercises: {} };
+          next[dateKey].exercises[exName] = next[dateKey].exercises[exName] || {};
+          next[dateKey].exercises[exName][setIdx] = next[dateKey].exercises[exName][setIdx] || { peso: "", reps: "" };
+          next[dateKey].exercises[exName][setIdx][field] = value;
+          return next;
+        });
+      };
+
+      const handleNotes = (dateKey, value) => {
+        setStore(prev => {
+          const next = { ...prev };
+          next[dateKey] = next[dateKey] || { notes: "", exercises: {} };
+          next[dateKey].notes = value;
+          return next;
+        });
+      };
+
+      return (
+        <div className="min-h-screen bg-neutral-50 text-neutral-900">
+          <header className="sticky top-0 z-10 bg-white border-b border-neutral-200">
+            <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Rutina alumna · Septiembre 2025</h1>
+                <p className="text-sm text-neutral-600">Martes: Día 1 – Tren Inferior · Jueves: Día 2 – Tren Superior</p>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-6xl mx-auto px-4 py-6 grid md:grid-cols-2 gap-6">
+            {/* Calendario */}
+            <section className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold">Calendario</h2>
+                <span className="text-sm text-neutral-600">Septiembre {YEAR}</span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-neutral-600 mb-1">
+                {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d => (
+                  <div key={d} className="py-2">{d}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {monthMatrix.map((week, wi) => week.map((cell, ci) => {
+                  const d = cell.date;
+                  const current = cell.currentMonth;
+                  const isTraining = !!trainingByWeekday[d.getDay()];
+                  const block = trainingByWeekday[d.getDay()]?.label;
+                  const isSelected = selectedDate && selectedDate.toDateString() === d.toDateString();
+                  return (
+                    <button
+                      key={`${wi}-${ci}`}
+                      onClick={() => current && isTraining && setSelectedDate(d)}
+                      className={[
+                        "aspect-square rounded-xl border text-sm flex flex-col items-center justify-center p-1",
+                        current ? "bg-white border-neutral-200" : "bg-neutral-100 border-neutral-200 text-neutral-400",
+                        (isTraining && current) ? "ring-1 ring-blue-300" : "",
+                        isSelected ? "outline outline-2 outline-blue-500" : ""
+                      ].join(" ")}
+                      title={block || ""}
+                      disabled={!current}
+                    >
+                      <div className="font-semibold">{d.getMonth() === MONTH ? d.getDate() : ""}</div>
+                      {current && (
+                        <div className="text-[10px] mt-1 leading-tight">
+                          {isTraining ? (
+                            <span className="inline-block px-1 py-0.5 rounded bg-blue-50 text-blue-700">{(block || "").replace("Día ", "D")}</span>
+                          ) : (
+                            <span className="text-neutral-300">—</span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                }))}
+              </div>
+
+              <p className="text-xs text-neutral-500 mt-3">Pulsa un día de entrenamiento para registrar peso y repeticiones.</p>
+            </section>
+
+            {/* Detalle del día */}
+            <section className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4">
+              <h2 className="text-lg font-semibold mb-2">Detalle del día</h2>
+              {!selectedDate ? (
+                <p className="text-sm text-neutral-600">Selecciona un <strong>martes</strong> o <strong>jueves</strong> en el calendario para ver los ejercicios.</p>
+              ) : !trainingInfo ? (
+                <p className="text-sm text-neutral-600">El día seleccionado no es de entrenamiento.</p>
+              ) : (
+                <DayDetail
+                  date={selectedDate}
+                  label={trainingInfo.label}
+                  exercises={trainingInfo.exercises}
+                  store={store}
+                  onInput={handleInput}
+                  onNotes={handleNotes}
+                />
+              )}
+            </section>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
